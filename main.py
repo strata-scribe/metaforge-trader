@@ -10,6 +10,8 @@ from statistics import median
 from collections import defaultdict
 from contextlib import asynccontextmanager
 
+from notifier import send_discord_webhook
+
 # File-based Persistence
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
@@ -18,7 +20,8 @@ DEFAULT_CONFIG = {
         "snipe_epic_threshold": 15,
         "max_listings_cache": 100,
         "poll_interval": 20,
-        "supabase_token": ""
+        "supabase_token": "",
+        "discord_webhook_url": ""
     },
     "owned_blueprints": [],
     "ignore_list": ["familiar-duck"],
@@ -53,7 +56,8 @@ market_state = {
     "watchlist_matches": [],
     "priority_matches": [],
     "item_stats": {}, 
-    "stats": {"avg_legendary": 0, "total_volume": 0, "last_update": "Never"}
+    "stats": {"avg_legendary": 0, "total_volume": 0, "last_update": "Never"},
+    "notified_snipes": set()
 }
 
 def get_profile_slug(username):
@@ -113,6 +117,14 @@ async def process_market_data(listings):
     market_state["stats"]["avg_legendary"] = round(median(legendary_prices), 1) if legendary_prices else 0
     market_state["stats"]["total_volume"] = len(listings)
     market_state["stats"]["last_update"] = datetime.now().strftime("%H:%M:%S")
+
+    webhook_url = config.get("settings", {}).get("discord_webhook_url", "")
+    if webhook_url:
+        for snipe in snipes:
+            snipe_id = snipe.get("id")
+            if snipe_id and snipe_id not in market_state["notified_snipes"]:
+                asyncio.create_task(send_discord_webhook(webhook_url, snipe))
+                market_state["notified_snipes"].add(snipe_id)
 
 async def fetch_listings():
     async with httpx.AsyncClient() as client:
