@@ -1,6 +1,6 @@
 import asyncio
 import httpx
-from fastapi import FastAPI, Request, Body
+from fastapi import FastAPI, Request, Body, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
 import json
@@ -9,6 +9,27 @@ from datetime import datetime
 from statistics import median
 from collections import defaultdict
 from contextlib import asynccontextmanager
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
 
 # File-based Persistence
 CONFIG_FILE = "config.json"
@@ -47,6 +68,7 @@ def save_config(config):
 
 # State
 config = load_config()
+seen_deal_ids = set()
 market_state = {
     "all_listings": [],
     "snipes": [],
@@ -60,8 +82,9 @@ def get_profile_slug(username):
     return username.replace("#", "-") if username else ""
 
 async def process_market_data(listings):
-    global market_state, config
+    global market_state, config, seen_deal_ids
     snipes, watchlist_matches, priority_matches, filtered_listings, legendary_prices = [], [], [], [], []
+    new_deals = []
     
     # Calculate item-specific averages first
     item_prices = defaultdict(list)
@@ -104,6 +127,13 @@ async def process_market_data(listings):
             elif rarity == "Epic" and price <= config["settings"]["snipe_epic_threshold"]:
                 item["alert_reason"] = f"Epic Snipe (<{config['settings']['snipe_epic_threshold']})"
                 snipes.append(item)
+
+            if "alert_reason" in item:
+                deal_id = item.get("id")
+                if deal_id and deal_id not in seen_deal_ids:
+                    seen_deal_ids.add(deal_id)
+                    new_deals.append(item)
+
         filtered_listings.append(item)
 
     market_state["all_listings"] = filtered_listings[:config["settings"]["max_listings_cache"]]
@@ -113,6 +143,9 @@ async def process_market_data(listings):
     market_state["stats"]["avg_legendary"] = round(median(legendary_prices), 1) if legendary_prices else 0
     market_state["stats"]["total_volume"] = len(listings)
     market_state["stats"]["last_update"] = datetime.now().strftime("%H:%M:%S")
+
+    if new_deals:
+        await manager.broadcast(json.dumps(new_deals))
 
 async def fetch_listings():
     async with httpx.AsyncClient() as client:
@@ -136,6 +169,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
+
+@app.websocket("/ws/deals")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep the connection open and wait for messages
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
