@@ -9,6 +9,7 @@ from datetime import datetime
 from statistics import median
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from worker import DealsWorker
 
 # File-based Persistence
 CONFIG_FILE = "config.json"
@@ -123,16 +124,13 @@ async def fetch_listings():
                 await process_market_data(response.json().get("data", []))
         except Exception as e: print(f"Update Error: {e}")
 
-async def monitor_loop():
-    while True:
-        await fetch_listings()
-        await asyncio.sleep(config["settings"]["poll_interval"])
+worker_instance = DealsWorker()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    monitor_task = asyncio.create_task(monitor_loop())
+    worker_instance.start(fetch_listings, lambda: config["settings"]["poll_interval"])
     yield
-    monitor_task.cancel()
+    await worker_instance.stop()
 
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
