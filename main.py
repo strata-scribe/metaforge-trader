@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 import json
 import os
 from datetime import datetime
+from config_models import AppConfig
 from statistics import median
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -38,12 +39,15 @@ def load_config():
     if not os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "w") as f:
             json.dump(DEFAULT_CONFIG, f, indent=4)
-        return DEFAULT_CONFIG
-    with open(CONFIG_FILE, "r") as f:
-        cfg = json.load(f)
-        if "needed_items" not in cfg: cfg["needed_items"] = {}
-        if "completed_quests" not in cfg: cfg["completed_quests"] = []
-        return cfg
+        cfg = DEFAULT_CONFIG
+    else:
+        with open(CONFIG_FILE, "r") as f:
+            cfg = json.load(f)
+            if "needed_items" not in cfg: cfg["needed_items"] = {}
+            if "completed_quests" not in cfg: cfg["completed_quests"] = []
+
+    # Validate and convert back to dict
+    return AppConfig.model_validate(cfg).model_dump()
 
 def save_config(config):
     with open(CONFIG_FILE, "w") as f:
@@ -153,7 +157,11 @@ async def index(request: Request):
 
 @app.post("/api/settings")
 async def update_settings(new_config: dict = Body(...)):
-    global config; config = new_config; save_config(config); await fetch_listings(); return {"status": "success"}
+    global config
+    config = AppConfig.model_validate(new_config).model_dump()
+    save_config(config)
+    await fetch_listings()
+    return {"status": "success"}
 
 @app.post("/api/import/bulk")
 async def bulk_import(data: dict = Body(...)):
