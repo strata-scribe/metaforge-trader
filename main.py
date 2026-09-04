@@ -233,7 +233,7 @@ async def bulk_import(data: dict = Body(...)):
             ids = [x.get("item_id") if isinstance(x, dict) else x for x in parsed]
             config["owned_blueprints"] = list(set(config["owned_blueprints"] + ids))
         elif type == "projects":
-            for key, qty in parsed.items():
+            for key in parsed:
                 parts = key.split(":")
                 if len(parts) >= 4: config["needed_items"][parts[3]] = f"Project: {parts[1]} ({parts[2]})"
         elif type == "tracker":
@@ -251,7 +251,7 @@ async def bulk_import(data: dict = Body(...)):
                     if isinstance(q_data, dict) and q_data.get("needed_items"):
                         for item in q_data["needed_items"]: config["needed_items"][item["id"]] = f"Quest: {q_id}"
         save_config(config); await fetch_listings(); return {"status": "success", "message": "Import successful"}
-    except Exception as e: return {"status": "error", "message": f"Parse Error: {str(e)}"}
+    except Exception as e: return {"status": "error", "message": f"Parse Error: {e!s}"}
 
 @app.post("/api/actions/owned", tags=["Actions"], description="Marks a specific item as owned in the configuration.")
 async def mark_owned(data: dict = Body(...)):
