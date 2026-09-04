@@ -2,12 +2,15 @@ from pydantic import BaseModel, RootModel, ConfigDict, Field
 from typing import List, Dict, Union
 
 class Settings(BaseModel):
-    model_config = ConfigDict(strict=True)
+    model_config = ConfigDict(extra="ignore")
     snipe_legendary_threshold: Union[int, float]
     snipe_epic_threshold: Union[int, float]
     max_listings_cache: int
     poll_interval: int
-    supabase_token: str
+    supabase_token: str = ""
+    discord_webhook_url: str = ""
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
 class OwnedBlueprints(RootModel[List[str]]):
     model_config = ConfigDict(strict=True)

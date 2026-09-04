@@ -11,8 +11,7 @@ from statistics import median
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from worker import DealsWorker
-
-from notifier import send_discord_webhook
+from notifier import send_discord_webhook, TelegramNotifier
 
 class ConnectionManager:
     def __init__(self):
@@ -35,6 +34,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+
 # File-based Persistence
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
@@ -44,7 +44,10 @@ DEFAULT_CONFIG = {
         "max_listings_cache": 100,
         "poll_interval": 20,
         "supabase_token": "",
-        "discord_webhook_url": ""
+        "discord_webhook_url": "",
+        "telegram_bot_token": "",
+        "telegram_chat_id": ""
+
     },
     "owned_blueprints": [],
     "ignore_list": ["familiar-duck"],
@@ -86,15 +89,21 @@ market_state = {
     "stats": {"avg_legendary": 0, "total_volume": 0, "last_update": "Never"},
     "notified_snipes": set()
 }
+alerted_listings = set()
 
 def get_profile_slug(username):
     return username.replace("#", "-") if username else ""
 
 async def process_market_data(listings):
-    global market_state, config, seen_deal_ids
+    global market_state, config, seen_deal_ids, alerted_listings
+
     snipes, watchlist_matches, priority_matches, filtered_listings, legendary_prices = [], [], [], [], []
     new_deals = []
     
+    bot_token = config.get("settings", {}).get("telegram_bot_token", "")
+    chat_id = config.get("settings", {}).get("telegram_chat_id", "")
+    notifier = TelegramNotifier(bot_token, chat_id)
+
     # Calculate item-specific averages first
     item_prices = defaultdict(list)
     for item in listings:
@@ -123,25 +132,33 @@ async def process_market_data(listings):
         
         if price:
             if rarity == "Legendary": legendary_prices.append(price)
+
+            alert_triggered = False
             if item_id in config["needed_items"]:
                 item["alert_reason"] = config["needed_items"][item_id]
                 item["is_priority"] = True
                 priority_matches.append(item)
-            if item_id in config["watchlist"] and price <= config["watchlist"][item_id]:
+                alert_triggered = True
+            elif item_id in config["watchlist"] and price <= config["watchlist"][item_id]:
                 item["alert_reason"] = f"Watchlist Match: {config['watchlist'][item_id]}"
                 watchlist_matches.append(item)
-            if rarity == "Legendary" and price <= config["settings"]["snipe_legendary_threshold"]:
+                alert_triggered = True
+            elif rarity == "Legendary" and price <= config["settings"]["snipe_legendary_threshold"]:
                 item["alert_reason"] = f"Legendary Snipe (<{config['settings']['snipe_legendary_threshold']})"
                 snipes.append(item)
+                alert_triggered = True
             elif rarity == "Epic" and price <= config["settings"]["snipe_epic_threshold"]:
                 item["alert_reason"] = f"Epic Snipe (<{config['settings']['snipe_epic_threshold']})"
                 snipes.append(item)
-
             if "alert_reason" in item:
                 deal_id = item.get("id")
                 if deal_id and deal_id not in seen_deal_ids:
                     seen_deal_ids.add(deal_id)
                     new_deals.append(item)
+                if deal_id and deal_id not in alerted_listings:
+                    await notifier.send_alert(item)
+                    alerted_listings.add(deal_id)
+
 
         filtered_listings.append(item)
 
