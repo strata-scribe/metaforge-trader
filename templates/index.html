@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Metaforge Trader Pro</title>
+    <style>
+        :root { --bg: #050505; --surface: #121212; --brand: #d98c1a; --text: #e0e0e0; --legendary: #ff8000; --epic: #a335ee; --rare: #0070dd; --priority: #ffd700; --profit: #4caf50; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        aside { width: 300px; background: var(--surface); border-right: 1px solid #222; padding: 20px; display: flex; flex-direction: column; }
+        .stat-card { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #222; }
+        .stat-value { font-size: 1.8em; font-weight: 900; color: var(--brand); }
+        .stat-label { font-size: 0.8em; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        main { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+        header { padding: 10px 30px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        .tabs { display: flex; gap: 20px; padding: 0 30px; border-bottom: 1px solid #222; background: #0a0a0a; }
+        .tab { padding: 15px 10px; cursor: pointer; color: #666; font-weight: 600; border-bottom: 2px solid transparent; }
+        .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+        #feed { padding: 20px 30px; overflow-y: auto; flex-grow: 1; }
+        .listing { background: var(--surface); border-radius: 6px; padding: 15px; margin-bottom: 10px; display: flex; align-items: center; border: 1px solid #1a1a1a; transition: transform 0.2s; }
+        .listing img { width: 48px; height: 48px; border-radius: 4px; margin-right: 20px; }
+        .item-name { font-weight: 700; font-size: 1.1em; margin-bottom: 4px; }
+        .price { font-size: 1.3em; font-weight: 900; color: #fff; margin-right: 15px; }
+        .price span { font-size: 0.6em; color: var(--brand); margin-left: 4px; }
+        .rarity-legendary { color: var(--legendary); }
+        .rarity-epic { color: var(--epic); }
+        .rarity-rare { color: var(--rare); }
+        .priority-item { border: 2px solid var(--priority); background: #1a1a05; }
+        .hidden { display: none !important; }
+        .btn { background: var(--brand); color: #000; padding: 8px 18px; border-radius: 4px; text-decoration: none; font-weight: 900; font-size: 0.85em; cursor: pointer; border: none; }
+        .btn-sync { background: #4caf50; margin-bottom: 15px; width: 100%; }
+        .btn-sm { padding: 4px 8px; font-size: 0.7em; background: #222; color: #888; margin-left: 5px; }
+        .badge { font-size: 0.6em; padding: 2px 6px; border-radius: 3px; font-weight: 900; margin-left: 10px; }
+        .badge-priority { background: var(--priority); color: #000; }
+        .avg-price { font-size: 0.85em; color: #888; font-weight: 600; }
+        .profit-margin { font-size: 0.85em; color: var(--profit); font-weight: 800; margin-left: 10px; }
+        .sync-hub { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .sync-card { background: #111; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        textarea { width: 100%; height: 80px; background: #0a0a0a; color: #eee; border: 1px solid #333; padding: 10px; font-family: monospace; font-size: 0.8em; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <aside>
+        <h2>Analytics</h2>
+        <div class="stat-card">
+            <div class="stat-value">{{ state.stats.avg_legendary }}</div>
+            <div class="stat-label">Global Avg. Legendary</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color: var(--priority);">{{ config.needed_items|length }}</div>
+            <div class="stat-label">Items Still Needed</div>
+        </div>
+        <button class="btn btn-sync" onclick="showTab('sync')">DATA SYNC HUB</button>
+        <button class="btn" onclick="saveSettings()" style="width: 100%;">SAVE ALL SETTINGS</button>
+    </aside>
+
+    <main>
+        <header>
+            <h1>Metaforge Pro</h1>
+            <div style="font-size: 0.8em; color: #666;">V1.8 - Stabilized Analytics</div>
+        </header>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="market" onclick="showTab('market')">Market Feed</div>
+            <div class="tab" data-tab="snipes" onclick="showTab('snipes')">
+                Alerts & Snipes ({{ state.snipes|length + state.watchlist_matches|length + state.priority_matches|length }})
+            </div>
+            <div class="tab" data-tab="sync" onclick="showTab('sync')">Sync Hub</div>
+            <div class="tab" data-tab="settings" onclick="showTab('settings')">Settings</div>
+        </div>
+
+        <div id="feed">
+            <div id="tab-market">
+                {% for item in state.all_listings %}
+                <div class="listing {{ 'priority-item' if item.is_priority else '' }}">
+                    <img src="{{ item.item.icon }}">
+                    <div style="flex-grow:1;">
+                        <div class="item-name rarity-{{ item.item.rarity.lower() }}">
+                            {{ item.item.name }}
+                            {% if item.is_priority %}<span class="badge badge-priority">NEEDED</span>{% endif %}
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <div class="price">{{ item.price }}<span>SEEDS</span></div>
+                            <div class="avg-price">Avg: {{ item.get('market_avg', 0) }}</div>
+                            <div style="color: #666; font-size: 0.8em; margin-left: 15px;">Seller: {{ item.user_profile.username }}</div>
+                            <button class="btn-sm" onclick="quickAction('owned', '{{ item.item_id }}')">Mark Owned</button>
+                        </div>
+                    </div>
+                    <a href="https://metaforge.app/profile/{{ item.profile_slug }}?game=arc-raiders" target="_blank" class="btn">VIEW PROFILE</a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="tab-snipes" class="hidden">
+                {% for item in state.priority_matches + state.watchlist_matches + state.snipes %}
+                <div class="listing {{ 'priority-item' if item.is_priority else '' }}">
+                    <img src="{{ item.item.icon }}">
+                    <div style="flex-grow:1;">
+                        <div class="item-name rarity-{{ item.item.rarity.lower() }}">
+                            {{ item.item.name }}
+                            <span class="badge {{ 'badge-priority' if item.is_priority else 'badge-snipe' }}">{{ item.alert_reason }}</span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <div class="price">{{ item.price }}<span>SEEDS</span></div>
+                            <div class="avg-price">Market Avg: {{ item.get('market_avg', 0) }}</div>
+                            {% if item.get('market_avg', 0) > item.price %}
+                            <div class="profit-margin">★ Profit: {{ (item.market_avg - item.price) | round(1) }} Seeds</div>
+                            {% endif %}
+                            <button class="btn-sm" style="margin-left: 20px;" onclick="quickAction('owned', '{{ item.item_id }}')">Mark Owned</button>
+                        </div>
+                    </div>
+                    <a href="https://metaforge.app/profile/{{ item.profile_slug }}?game=arc-raiders" target="_blank" class="btn">SNIPE NOW</a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="tab-sync" class="hidden">
+                <div class="sync-hub">
+                    <div class="sync-card">
+                        <h3>1. Blueprints</h3>
+                        <p><small>LS: <code>arc-obtained-recipes</code></small></p>
+                        <textarea id="import_blueprints"></textarea>
+                        <button class="btn btn-sm" onclick="bulkImport('blueprints')">IMPORT</button>
+                    </div>
+                    <div class="sync-card">
+                        <h3>2. Item Tracker Lists</h3>
+                        <p><small>LS: <code>arc-raiders-item-tracker-lists</code></small></p>
+                        <textarea id="import_tracker"></textarea>
+                        <button class="btn btn-sm" onclick="bulkImport('tracker')">IMPORT NEEDED</button>
+                    </div>
+                    <div class="sync-card">
+                        <h3>3. Quests (Status)</h3>
+                        <p><small>LS: <code>arc-raiders-quest-tracking</code></small></p>
+                        <textarea id="import_quests"></textarea>
+                        <button class="btn btn-sm" onclick="bulkImport('quests')">IMPORT STATUS</button>
+                    </div>
+                    <div class="sync-card">
+                        <h3>4. Projects (Cloud Sync)</h3>
+                        <p><small>LS: <code>cloud-sync</code></small></p>
+                        <textarea id="import_projects"></textarea>
+                        <button class="btn btn-sm" onclick="bulkImport('projects')">IMPORT PROJECTS</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-settings" class="hidden">
+                <div class="settings-card">
+                    <h3>Priority Items (Raw JSON)</h3>
+                    <textarea id="needed_items_json" style="height: 300px;">{{ config.needed_items | tojson(indent=4) }}</textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#feed > div').forEach(d => d.classList.add('hidden'));
+            document.querySelector('[data-tab="'+tabName+'"]').classList.add('active');
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+        }
+        async function bulkImport(type) {
+            const raw = document.getElementById('import_' + type).value;
+            const resp = await fetch('/api/import/bulk', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({type: type, raw: raw})});
+            const data = await resp.json();
+            alert(data.message);
+            location.reload();
+        }
+        async function quickAction(type, itemId) {
+            await fetch('/api/actions/' + type, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({item_id: itemId})});
+            location.reload();
+        }
+        async function saveSettings() {
+            const newConfig = {
+                settings: {{ config.settings | tojson }},
+                owned_blueprints: {{ config.owned_blueprints | tojson }},
+                ignore_list: {{ config.ignore_list | tojson }},
+                completed_quests: {{ config.completed_quests | tojson }},
+                needed_items: JSON.parse(document.getElementById('needed_items_json').value),
+                watchlist: {{ config.watchlist | tojson }}
+            };
+            await fetch('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(newConfig)});
+            alert('Settings Saved!');
+            location.reload();
+        }
+        setInterval(() => { if (!['settings','sync'].includes(document.querySelector('.tab.active').dataset.tab)) location.reload(); }, 30000);
+    </script>
+</body>
+</html>

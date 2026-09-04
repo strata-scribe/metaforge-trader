@@ -1,0 +1,88 @@
+[
+    {
+        "id": "96de011e-1374-43ce-80fa-265f6d15691a",
+        "item_id": "pulse-mine-blueprint",
+        "listing_type": "sell",
+        "quantity": 2,
+        "price": 30,
+        "description": "ready to start working immediately",
+        "status": "active",
+        "created_at": "2026-04-13T21:19:45.447106+00:00",
+        "updated_at": "2026-04-13T21:19:45.447106+00:00",
+        "expires_at": null,
+        "trade_type": "seed",
+        "allow_partial_fills": false,
+        "reserved_quantity": 0,
+        "item": {
+            "id": "pulse-mine-blueprint",
+            "icon": "https://cdn.metaforge.app/arc-raiders/icons/pulse-mine.webp",
+            "name": "Pulse Mine Blueprint",
+            "value": 5000,
+            "rarity": "Legendary",
+            "item_type": "Blueprint"
+        },
+        "preferences": [],
+        "user_reputation": {
+            "total_ratings": 6,
+            "positive_count": 6,
+            "negative_count": 0,
+            "positive_percentage": 100
+        },
+        "item_type": "Blueprint",
+        "available_quantity": 2,
+        "user_profile": {
+            "full_name": "wladys_",
+            "username": "wladys_#1477",
+            "avatar_url": "https://cdn.discordapp.com/avatars/487641358069268481/2e3fabc1cedaafbe0e0911039e5d2349.png",
+            "online_expires_at": null,
+            "embark_id": true,
+            "embark_authorized": true
+        },
+        "has_active_negotiation": false,
+        "is_negotiation_participant": false,
+        "is_snipe_alert": true
+    },
+    {
+        "id": "10ac9888-0f6a-42c7-b8c0-bc94aeba6eb4",
+        "item_id": "gas-mine-blueprint",
+        "listing_type": "sell",
+        "quantity": 1,
+        "price": 30,
+        "description": "ready to start working immediately",
+        "status": "active",
+        "created_at": "2026-04-13T21:18:34.546957+00:00",
+        "updated_at": "2026-04-13T21:18:34.546957+00:00",
+        "expires_at": null,
+        "trade_type": "seed",
+        "allow_partial_fills": false,
+        "reserved_quantity": 0,
+        "item": {
+            "id": "gas-mine-blueprint",
+            "icon": "https://cdn.metaforge.app/arc-raiders/icons/gas-mine.webp",
+            "name": "Gas Mine Blueprint",
+            "value": 5000,
+            "rarity": "Legendary",
+            "item_type": "Blueprint"
+        },
+        "preferences": [],
+        "user_reputation": {
+            "total_ratings": 6,
+            "positive_count": 6,
+            "negative_count": 0,
+            "positive_percentage": 100
+        },
+        "item_type": "Blueprint",
+        "available_quantity": 1,
+        "user_profile": {
+            "full_name": "wladys_",
+            "username": "wladys_#1477",
+            "avatar_url": "https://cdn.discordapp.com/avatars/487641358069268481/2e3fabc1cedaafbe0e0911039e5d2349.png",
+            "online_expires_at": null,
+            "embark_id": true,
+            "embark_authorized": true
+        },
+        "has_active_negotiation": false,
+        "is_negotiation_participant": false,
+        "is_snipe_alert": true
+    }
+]
