@@ -1,14 +1,15 @@
 import asyncio
-import httpx
-from fastapi import FastAPI, Request, Body
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
 import json
 import os
-from datetime import datetime
-from statistics import median
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from datetime import datetime
+from statistics import median
+
+import httpx
+from fastapi import Body, FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 # File-based Persistence
 CONFIG_FILE = "config.json"
@@ -155,7 +156,7 @@ async def bulk_import(data: dict = Body(...)):
             ids = [x.get("item_id") if isinstance(x, dict) else x for x in parsed]
             config["owned_blueprints"] = list(set(config["owned_blueprints"] + ids))
         elif type == "projects":
-            for key, qty in parsed.items():
+            for key in parsed:
                 parts = key.split(":")
                 if len(parts) >= 4: config["needed_items"][parts[3]] = f"Project: {parts[1]} ({parts[2]})"
         elif type == "tracker":
@@ -173,7 +174,7 @@ async def bulk_import(data: dict = Body(...)):
                     if isinstance(q_data, dict) and q_data.get("needed_items"):
                         for item in q_data["needed_items"]: config["needed_items"][item["id"]] = f"Quest: {q_id}"
         save_config(config); await fetch_listings(); return {"status": "success", "message": "Import successful"}
-    except Exception as e: return {"status": "error", "message": f"Parse Error: {str(e)}"}
+    except Exception as e: return {"status": "error", "message": f"Parse Error: {e!s}"}
 
 @app.post("/api/actions/owned")
 async def mark_owned(data: dict = Body(...)):
