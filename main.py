@@ -137,15 +137,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, tags=["Frontend"], description="Renders the main frontend dashboard.")
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"state": market_state, "config": config})
 
-@app.post("/api/settings")
+@app.post("/api/settings", tags=["Configuration"], description="Updates application settings and triggers a market data refresh.")
 async def update_settings(new_config: dict = Body(...)):
     global config; config = new_config; save_config(config); await fetch_listings(); return {"status": "success"}
 
-@app.post("/api/import/bulk")
+@app.post("/api/import/bulk", tags=["Import"], description="Bulk imports data (blueprints, projects, tracker, quests) and updates configuration.")
 async def bulk_import(data: dict = Body(...)):
     type, raw = data.get("type"), data.get("raw", "").strip()
     if raw.startswith("'") and raw.endswith("'"): raw = raw[1:-1]
@@ -175,10 +175,26 @@ async def bulk_import(data: dict = Body(...)):
         save_config(config); await fetch_listings(); return {"status": "success", "message": "Import successful"}
     except Exception as e: return {"status": "error", "message": f"Parse Error: {str(e)}"}
 
-@app.post("/api/actions/owned")
+@app.post("/api/actions/owned", tags=["Actions"], description="Marks a specific item as owned in the configuration.")
 async def mark_owned(data: dict = Body(...)):
     item_id = data.get("item_id"); config["owned_blueprints"].append(item_id) if item_id not in config["owned_blueprints"] else None
     save_config(config); await fetch_listings(); return {"status": "success"}
+
+@app.get("/health", tags=["System"], description="Health check endpoint returning system status, memory usage, and loaded deal counts.")
+async def health_check():
+    import resource
+    memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+
+    return {
+        "status": "ok",
+        "memory_mb": round(memory_mb, 2),
+        "deals": {
+            "all_listings": len(market_state.get("all_listings", [])),
+            "snipes": len(market_state.get("snipes", [])),
+            "watchlist_matches": len(market_state.get("watchlist_matches", [])),
+            "priority_matches": len(market_state.get("priority_matches", []))
+        }
+    }
 
 if __name__ == "__main__":
     import uvicorn
