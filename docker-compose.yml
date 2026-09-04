@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  metaforge-trader:
+    build: .
+    ports:
+      - "8011:8011"
+    volumes:
+      - config_data:/data
+    environment:
+      - METAFORGE_TOKEN=${METAFORGE_TOKEN:-}
+
+volumes:
+  config_data:
