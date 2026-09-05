@@ -36,7 +36,16 @@
         .sync-hub { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .sync-card { background: #111; padding: 20px; border-radius: 8px; border: 1px solid #333; }
         textarea { width: 100%; height: 80px; background: #0a0a0a; color: #eee; border: 1px solid #333; padding: 10px; font-family: monospace; font-size: 0.8em; margin: 10px 0; }
+
+        /* Chart Modal Styles */
+        #chart-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .chart-container { background: var(--surface); padding: 20px; border-radius: 8px; width: 80%; max-width: 900px; border: 1px solid #333; position: relative; }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .chart-header h3 { margin: 0; color: var(--brand); font-size: 1.5em; }
+        .close-btn { background: none; border: none; color: #888; font-size: 1.5em; cursor: pointer; }
+        .close-btn:hover { color: #fff; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <aside>
@@ -85,7 +94,10 @@
                             <button class="btn-sm" onclick="quickAction('owned', '{{ item.item_id }}')">Mark Owned</button>
                         </div>
                     </div>
-                    <a href="https://metaforge.app/profile/{{ item.profile_slug }}?game=arc-raiders" target="_blank" class="btn">VIEW PROFILE</a>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <a href="https://metaforge.app/profile/{{ item.profile_slug }}?game=arc-raiders" target="_blank" class="btn" style="text-align: center;">VIEW PROFILE</a>
+                        <button class="btn" onclick='openChart("{{ item.item_id }}", {{ item.item.name | tojson }})' style="background: #222; color: #fff;">VIEW CHART</button>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -108,7 +120,10 @@
                             <button class="btn-sm" style="margin-left: 20px;" onclick="quickAction('owned', '{{ item.item_id }}')">Mark Owned</button>
                         </div>
                     </div>
-                    <a href="https://metaforge.app/profile/{{ item.profile_slug }}?game=arc-raiders" target="_blank" class="btn">SNIPE NOW</a>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <a href="https://metaforge.app/profile/{{ item.profile_slug }}?game=arc-raiders" target="_blank" class="btn" style="text-align: center;">SNIPE NOW</a>
+                        <button class="btn" onclick='openChart("{{ item.item_id }}", {{ item.item.name | tojson }})' style="background: #222; color: #fff;">VIEW CHART</button>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -151,7 +166,129 @@
         </div>
     </main>
 
+    <!-- Chart Modal -->
+    <div id="chart-modal" class="hidden">
+        <div class="chart-container">
+            <div class="chart-header">
+                <h3 id="chart-title">Item History</h3>
+                <button class="close-btn" onclick="closeChart()">×</button>
+            </div>
+            <div style="position: relative; height:400px; width:100%;">
+                <canvas id="historyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let currentChart = null;
+
+        function closeChart() {
+            document.getElementById('chart-modal').classList.add('hidden');
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+        }
+
+        async function openChart(itemId, itemName) {
+            document.getElementById('chart-title').innerText = itemName + ' History';
+            document.getElementById('chart-modal').classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/history/' + itemId);
+                const data = await response.json();
+
+                if (!data.data || data.data.length === 0) {
+                    alert('No history data available.');
+                    closeChart();
+                    return;
+                }
+
+                // Filter out entries with null price, then sort chronologically (oldest to newest)
+                const validData = data.data
+                    .filter(item => item.price !== null)
+                    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+                const labels = validData.map(item => new Date(item.created_at).toLocaleString());
+                const prices = validData.map(item => item.price);
+                const volumes = validData.map(item => item.quantity);
+
+                const ctx = document.getElementById('historyChart').getContext('2d');
+
+                if (currentChart) {
+                    currentChart.destroy();
+                }
+
+                currentChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Price (Seeds)',
+                                data: prices,
+                                borderColor: '#d98c1a',
+                                backgroundColor: 'rgba(217, 140, 26, 0.1)',
+                                type: 'line',
+                                yAxisID: 'y',
+                                tension: 0.1,
+                                fill: true,
+                                order: 1
+                            },
+                            {
+                                label: 'Volume',
+                                data: volumes,
+                                backgroundColor: 'rgba(76, 175, 80, 0.5)', // #4caf50 with opacity
+                                type: 'bar',
+                                yAxisID: 'y1',
+                                order: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#888' },
+                                grid: { color: '#333' }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Price (Seeds)', color: '#d98c1a' },
+                                ticks: { color: '#d98c1a' },
+                                grid: { color: '#333' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: { display: true, text: 'Volume', color: '#4caf50' },
+                                ticks: { color: '#4caf50' },
+                                grid: { drawOnChartArea: false } // only want the grid lines for one axis to show up
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#eee' }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error fetching chart data:", error);
+                alert('Failed to load chart data.');
+                closeChart();
+            }
+        }
+
         function showTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('#feed > div').forEach(d => d.classList.add('hidden'));
