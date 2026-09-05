@@ -82,7 +82,7 @@ def save_config(config):
 
 # State
 config = load_config()
-seen_deal_ids = set()
+seen_deal_ids: set[str] = set()
 market_state = {
     "all_listings": [],
     "snipes": [],
@@ -92,7 +92,7 @@ market_state = {
     "stats": {"avg_legendary": 0, "total_volume": 0, "last_update": "Never"},
     "notified_snipes": set()
 }
-alerted_listings = set()
+alerted_listings: set[str] = set()
 
 def get_profile_slug(username):
     return username.replace("#", "-") if username else ""
