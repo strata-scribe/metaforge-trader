@@ -1,12 +1,12 @@
 import statistics
-from typing import List, Union
+
 
 class AnomalyDetector:
     def __init__(self, z_score_threshold: float = 3.0, iqr_multiplier: float = 1.5):
         self.z_score_threshold = z_score_threshold
         self.iqr_multiplier = iqr_multiplier
 
-    def detect_anomalies_z_score(self, prices: List[float]) -> List[bool]:
+    def detect_anomalies_z_score(self, prices: list[float]) -> list[bool]:
         """Detect anomalies using Z-score method."""
         if len(prices) < 2:
             return [False] * len(prices)
@@ -27,7 +27,7 @@ class AnomalyDetector:
 
         return anomalies
 
-    def detect_anomalies_iqr(self, prices: List[float]) -> List[bool]:
+    def detect_anomalies_iqr(self, prices: list[float]) -> list[bool]:
         """Detect anomalies using Interquartile Range (IQR) method."""
         if len(prices) < 4:
             # Not enough data for reliable quartiles
@@ -50,7 +50,7 @@ class AnomalyDetector:
 
         return anomalies
 
-    def is_anomaly(self, price: float, historical_prices: List[float]) -> bool:
+    def is_anomaly(self, price: float, historical_prices: list[float]) -> bool:
         """
         Determine if a price is an anomaly compared to historical prices.
         A price is considered an anomaly if both Z-score and IQR methods flag it.

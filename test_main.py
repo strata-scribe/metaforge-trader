@@ -1,15 +1,14 @@
-import pytest
-import asyncio
 import json
-import os
+
+import pytest
+
 from main import (
-    process_market_data,
-    market_state,
-    config,
-    get_profile_slug,
-    load_config,
     DEFAULT_CONFIG,
+    config,
+    market_state,
+    process_market_data,
 )
+
 
 @pytest.fixture(autouse=True)
 def reset_state():
@@ -225,7 +224,7 @@ async def test_malformed_deals_json(sample_deals):
     """Test logic with data loaded from deals.json or similar structure, including mutated data."""
     # Run with original
     await process_market_data(sample_deals)
-    original_volume = market_state["stats"]["total_volume"]
+
 
     # Let's malform some of this data
     malformed_data = []

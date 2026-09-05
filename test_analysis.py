@@ -1,5 +1,7 @@
 import pytest
+
 from analysis import AnomalyDetector
+
 
 @pytest.fixture
 def detector():
