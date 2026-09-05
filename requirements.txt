@@ -6,3 +6,5 @@ pydantic
 pydantic-settings
 pytest
 pytest-asyncio
+sqlalchemy
+aiosqlite
