@@ -25,8 +25,8 @@ class NeededItems(RootModel[dict[str, str]]):
 class AppConfig(BaseModel):
     model_config = ConfigDict(strict=True)
     settings: Settings
-    owned_blueprints: OwnedBlueprints = Field(default_factory=list)  # type: ignore[assignment]
+    owned_blueprints: list[str] = Field(default_factory=list)
     ignore_list: list[str] = Field(default_factory=list)
     completed_quests: list[str] = Field(default_factory=list)
-    needed_items: NeededItems = Field(default_factory=dict)  # type: ignore[assignment]
-    watchlist: Watchlist = Field(default_factory=dict)  # type: ignore[assignment]
+    needed_items: dict[str, str] = Field(default_factory=dict)
+    watchlist: dict[str, int | float] = Field(default_factory=dict)
