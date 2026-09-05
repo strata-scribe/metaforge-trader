@@ -1,9 +1,11 @@
 import json
 
 import pytest
+from fastapi.testclient import TestClient
 
 from main import (
     DEFAULT_CONFIG,
+    app,
     config,
     market_state,
     process_market_data,
@@ -253,3 +255,34 @@ async def test_malformed_deals_json(sample_deals):
     for listing in market_state["all_listings"]:
         if listing.get("item_id") != "weird-item": # The ones we set to None
              assert listing.get("profile_slug") == ""
+
+
+client = TestClient(app)
+
+
+def test_export_trades_json():
+    response = client.get("/api/v1/export/trades?format=json")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    if len(data) > 0:
+        assert "id" in data[0]
+
+
+def test_export_trades_csv():
+    response = client.get("/api/v1/export/trades?format=csv")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/csv; charset=utf-8"
+    content = response.text
+    assert "id,item_id,listing_type,quantity,price,status,created_at" in content
+
+
+def test_export_trades_with_dates():
+    response = client.get("/api/v1/export/trades?format=json&start_date=2026-04-01T00:00:00Z&end_date=2026-04-30T00:00:00Z")
+    assert response.status_code == 200
+
+    response_empty = client.get("/api/v1/export/trades?format=json&start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T00:00:00Z")
+    assert response_empty.status_code == 200
+    data = response_empty.json()
+    assert isinstance(data, list)
+
