@@ -57,7 +57,7 @@ class SimulatedTradingEngine:
         # Let's implement this.
 
         # Sort listings by price ascending to simulate taking the best offers first
-        sorted_listings = sorted([l for l in listings if l.get('price') is not None and l.get('item_id') is not None], key=lambda x: x['price'])
+        sorted_listings = sorted([lst for lst in listings if lst.get('price') is not None and lst.get('item_id') is not None], key=lambda x: x['price'])
 
         listings_used = set()
         new_active_orders = []
@@ -103,7 +103,7 @@ class SimulatedTradingEngine:
                 # We can proxy this by checking if there's any listing >= limit_price.
                 # Or better, if the current cheapest listing is >= limit_price, we definitely would have been bought.
                 # Let's just find any listing for this item to determine market condition.
-                item_listings = [l for l in sorted_listings if l["item_id"] == order["item_id"]]
+                item_listings = [lst for lst in sorted_listings if lst["item_id"] == order["item_id"]]
                 if item_listings:
                     # If we placed a sell order at limit_price, and market price is at least limit_price, we get filled.
                     # As a simplistic model, we'll fill the whole order if the condition is met.
