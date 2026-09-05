@@ -1,17 +1,20 @@
 import asyncio
-import httpx
-from fastapi import FastAPI, Request, Body, WebSocket, WebSocketDisconnect
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
 import json
 import os
-from datetime import datetime
-from config_models import AppConfig
-from statistics import median
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from datetime import datetime
+from statistics import median
+
+import httpx
+from fastapi import Body, FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+
+from config_models import AppConfig
+from notifier import TelegramNotifier, send_discord_webhook
 from worker import DealsWorker
-from notifier import send_discord_webhook, TelegramNotifier
+
 
 class ConnectionManager:
     def __init__(self):
@@ -29,8 +32,8 @@ class ConnectionManager:
         for connection in self.active_connections:
             try:
                 await connection.send_text(message)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Broadcast error: {e}")
 
 manager = ConnectionManager()
 
@@ -133,20 +136,19 @@ async def process_market_data(listings):
         if price:
             if rarity == "Legendary": legendary_prices.append(price)
 
-            alert_triggered = False
             if item_id in config["needed_items"]:
                 item["alert_reason"] = config["needed_items"][item_id]
                 item["is_priority"] = True
                 priority_matches.append(item)
-                alert_triggered = True
+
             elif item_id in config["watchlist"] and price <= config["watchlist"][item_id]:
                 item["alert_reason"] = f"Watchlist Match: {config['watchlist'][item_id]}"
                 watchlist_matches.append(item)
-                alert_triggered = True
+
             elif rarity == "Legendary" and price <= config["settings"]["snipe_legendary_threshold"]:
                 item["alert_reason"] = f"Legendary Snipe (<{config['settings']['snipe_legendary_threshold']})"
                 snipes.append(item)
-                alert_triggered = True
+
             elif rarity == "Epic" and price <= config["settings"]["snipe_epic_threshold"]:
                 item["alert_reason"] = f"Epic Snipe (<{config['settings']['snipe_epic_threshold']})"
                 snipes.append(item)
