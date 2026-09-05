@@ -1,11 +1,13 @@
 import os
 from datetime import datetime, timezone
 
+from typing import AsyncGenerator
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from typing import Any
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-Base = declarative_base()
+Base: Any = declarative_base()
 
 class Item(Base):
     __tablename__ = 'items'
@@ -39,7 +41,7 @@ class CompletedTrade(Base):
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./market.db")
 
 engine = create_async_engine(DATABASE_URL, echo=False)
-async_session = async_sessionmaker(
+async_session = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
 
@@ -48,6 +50,6 @@ async def init_db():
         # Create all tables (migrations can be handled by alembic later if needed, but simple create_all for now)
         await conn.run_sync(Base.metadata.create_all)
 
-async def get_session() -> AsyncSession:
-    async with async_session() as session:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session() as session: # type: ignore
         yield session

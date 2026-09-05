@@ -1,7 +1,8 @@
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from database import (
     Base,
@@ -27,8 +28,8 @@ async def db_engine():
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(db_engine):
-    async_session = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session() as session:
+    async_session = sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session() as session: # type: ignore
         yield session
 
 @pytest.mark.asyncio
