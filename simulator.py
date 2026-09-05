@@ -1,11 +1,10 @@
-from typing import List, Dict
 
 class SimulatedTradingEngine:
     def __init__(self, initial_balance: float = 10000.0):
         self.initial_balance = initial_balance
         self.balance = initial_balance
-        self.portfolio: Dict[str, int] = {}
-        self.active_orders: List[Dict] = []
+        self.portfolio: dict[str, int] = {}
+        self.active_orders: list[dict] = []
         self.order_id_counter = 1
 
     def submit_order(self, side: str, item_id: str, quantity: int, limit_price: float) -> int:
@@ -35,7 +34,7 @@ class SimulatedTradingEngine:
         })
         return order_id
 
-    def match_against_listings(self, listings: List[Dict]):
+    def match_against_listings(self, listings: list[dict]):
         """
         Match active orders against live market prices (listings).
         Listings are assumed to be a list of dictionaries, each having 'item_id' and 'price'.
@@ -125,7 +124,7 @@ class SimulatedTradingEngine:
         self.active_orders = new_active_orders
 
 
-    def get_pnl(self, current_market_prices: Dict[str, float] = None) -> Dict[str, float]:
+    def get_pnl(self, current_market_prices: dict[str, float] | None = None) -> dict[str, float]:
         """
         Calculate realized and unrealized PnL.
         realized_pnl = current cash balance - initial balance
