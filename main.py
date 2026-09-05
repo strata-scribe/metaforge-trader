@@ -1,14 +1,16 @@
 import asyncio
+import csv
+import io
 import json
 import os
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from statistics import median
 
 import httpx
 from fastapi import Body, FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from config_models import AppConfig
@@ -259,6 +261,67 @@ async def bulk_import(data: dict = Body(...)):
 async def mark_owned(data: dict = Body(...)):
     item_id = data.get("item_id"); config["owned_blueprints"].append(item_id) if item_id not in config["owned_blueprints"] else None
     save_config(config); await fetch_listings(); return {"status": "success"}
+ 
+def _read_deals_file():
+    try:
+        with open("deals.json") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+@app.get("/api/v1/export/trades", tags=["Export"], description="Export trade data with optional date range filtering.")
+async def export_trades(
+    format: str = "json",
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+):
+    trades = _read_deals_file()
+
+    # Filter by date range
+    if start_date or end_date:
+        # Normalize parsed datetimes to be timezone-aware (UTC) if they are naive
+        if start_date and start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=timezone.utc)
+        if end_date and end_date.tzinfo is None:
+            end_date = end_date.replace(tzinfo=timezone.utc)
+
+        filtered_trades = []
+        for trade in trades:
+            try:
+                created_dt = datetime.fromisoformat(trade.get("created_at", "").replace("Z", "+00:00"))
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+
+                include = True
+                if start_date and created_dt < start_date:
+                    include = False
+                if end_date and created_dt > end_date:
+                    include = False
+
+                if include:
+                    filtered_trades.append(trade)
+            except (ValueError, TypeError):
+                continue
+        trades = filtered_trades
+
+    if format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["id", "item_id", "listing_type", "quantity", "price", "status", "created_at"])
+        for t in trades:
+            writer.writerow([
+                t.get("id", ""),
+                t.get("item_id", ""),
+                t.get("listing_type", ""),
+                t.get("quantity", ""),
+                t.get("price", ""),
+                t.get("status", ""),
+                t.get("created_at", ""),
+            ])
+        return Response(content=output.getvalue(), media_type="text/csv")
+
+    return JSONResponse(content=trades)
 
 @app.get("/health", tags=["System"], description="Health check endpoint returning system status, memory usage, and loaded deal counts.")
 async def health_check():
