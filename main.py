@@ -365,6 +365,17 @@ async def get_item_history(item_id: str, group_by: str = Query("hour", pattern="
     return results
 
 
+@app.get("/api/history/{item_id}", tags=["History"], description="Fetches historical market listings for an item directly from Metaforge.")
+async def get_metaforge_history(item_id: str):
+    async with httpx.AsyncClient() as client:
+        try:
+            params = {"item_id": item_id, "limit": 100}
+            response = await client.get("https://metaforge.app/api/arc-raiders/trade/listings", params=params)
+            return response.json()
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
 @app.get("/health", tags=["System"], description="Health check endpoint returning system status, memory usage, and loaded deal counts.")
 async def health_check():
     import resource
