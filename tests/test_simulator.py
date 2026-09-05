@@ -1,5 +1,7 @@
 import pytest
+
 from simulator import SimulatedTradingEngine
+
 
 def test_initialization():
     engine = SimulatedTradingEngine(1000.0)
