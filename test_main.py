@@ -286,3 +286,64 @@ def test_export_trades_with_dates():
     data = response_empty.json()
     assert isinstance(data, list)
 
+
+def test_get_item_history_empty():
+    response = client.get("/api/v1/history/non-existent")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_get_item_history_group_by_hour():
+    market_state["all_listings"] = [
+        {"item_id": "item-1", "price": 100, "quantity": 1, "created_at": "2026-04-13T21:10:00+00:00"},
+        {"item_id": "item-1", "price": 120, "quantity": 2, "created_at": "2026-04-13T21:45:00+00:00"},
+        {"item_id": "item-1", "price": 110, "quantity": 1, "created_at": "2026-04-13T22:15:00+00:00"},
+        {"item_id": "item-2", "price": 50, "quantity": 1, "created_at": "2026-04-13T21:30:00+00:00"},
+        {"item_id": "item-1", "price": 150, "quantity": 1, "created_at": "invalid-date"},
+    ]
+
+    response = client.get("/api/v1/history/item-1?group_by=hour")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+
+    assert data[0]["timestamp"] == "2026-04-13T21:00:00+00:00"
+    assert data[0]["min"] == 100
+    assert data[0]["max"] == 120
+    assert data[0]["median"] == 110.0
+    assert data[0]["volume"] == 3
+
+    assert data[1]["timestamp"] == "2026-04-13T22:00:00+00:00"
+    assert data[1]["min"] == 110
+    assert data[1]["max"] == 110
+    assert data[1]["median"] == 110.0
+    assert data[1]["volume"] == 1
+
+
+def test_get_item_history_group_by_day():
+    market_state["all_listings"] = [
+        {"item_id": "item-1", "price": 100, "quantity": 1, "created_at": "2026-04-13T21:10:00+00:00"},
+        {"item_id": "item-1", "price": 120, "quantity": 2, "created_at": "2026-04-14T10:45:00+00:00"},
+        {"item_id": "item-1", "price": 110, "quantity": 1, "created_at": "2026-04-14T22:15:00+00:00"},
+    ]
+
+    response = client.get("/api/v1/history/item-1?group_by=day")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+
+    assert data[0]["timestamp"] == "2026-04-13T00:00:00+00:00"
+    assert data[0]["volume"] == 1
+
+    assert data[1]["timestamp"] == "2026-04-14T00:00:00+00:00"
+    assert data[1]["volume"] == 3
+    assert data[1]["min"] == 110
+    assert data[1]["max"] == 120
+    assert data[1]["median"] == 115.0
+
+
+def test_get_item_history_invalid_group_by():
+    response = client.get("/api/v1/history/item-1?group_by=month")
+    assert response.status_code == 422
+
+
