@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from statistics import median
 
 import httpx
-from fastapi import Body, FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
@@ -322,6 +322,48 @@ async def export_trades(
         return Response(content=output.getvalue(), media_type="text/csv")
 
     return JSONResponse(content=trades)
+
+
+@app.get("/api/v1/history/{item_id}", tags=["History"], description="Returns aggregated price data grouped by hour or day.")
+async def get_item_history(item_id: str, group_by: str = Query("hour", pattern="^(hour|day)$")):
+    filtered = []
+    for item in market_state.get("all_listings", []):
+        if item.get("item_id") == item_id and "price" in item and "quantity" in item and "created_at" in item:
+            try:
+                # Handle isoformat string which might have 'Z' or '+00:00'
+                dt_str = item["created_at"].replace("Z", "+00:00")
+                dt = datetime.fromisoformat(dt_str)
+                filtered.append((dt, item["price"], item["quantity"]))
+            except ValueError:
+                continue
+
+    if not filtered:
+        return []
+
+    groups = defaultdict(list)
+    for dt, price, quantity in filtered:
+        if group_by == "hour":
+            group_key = dt.replace(minute=0, second=0, microsecond=0).isoformat()
+        else:
+            group_key = dt.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+        groups[group_key].append({"price": price, "quantity": quantity})
+
+    results = []
+    for key in sorted(groups.keys()):
+        items = groups[key]
+        prices = [x["price"] for x in items]
+        volume = sum(x["quantity"] for x in items)
+        results.append({
+            "timestamp": key,
+            "min": min(prices),
+            "max": max(prices),
+            "median": median(prices),
+            "volume": volume,
+        })
+
+    return results
+
 
 @app.get("/health", tags=["System"], description="Health check endpoint returning system status, memory usage, and loaded deal counts.")
 async def health_check():
