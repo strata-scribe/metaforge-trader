@@ -1,11 +1,12 @@
+import asyncio
+import gzip
 import os
 import sqlite3
-import gzip
 import tempfile
-import asyncio
 from datetime import datetime, timedelta
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from backup import BackupManager
 

@@ -1,10 +1,10 @@
 import asyncio
+import gzip
 import logging
 import os
-import sqlite3
-import gzip
 import shutil
-from datetime import datetime, timedelta
+import sqlite3
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class BackupManager:
             logger.error(f"Database file {self.db_path} does not exist.")
             return
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup_filename = f"backup_{timestamp}.db.gz"
         backup_filepath = os.path.join(self.backup_dir, backup_filename)
 
@@ -41,9 +41,8 @@ class BackupManager:
             source.close()
 
             # Compress the temporary file
-            with open(temp_db_path, 'rb') as f_in:
-                with gzip.open(backup_filepath, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+            with open(temp_db_path, 'rb') as f_in, gzip.open(backup_filepath, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
 
             logger.info(f"Backup created successfully: {backup_filepath}")
         except Exception as e:
@@ -59,7 +58,7 @@ class BackupManager:
         if not os.path.exists(self.backup_dir):
             return
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         for filename in os.listdir(self.backup_dir):
             if not filename.startswith("backup_") or not filename.endswith(".db.gz"):
                 continue
@@ -70,7 +69,7 @@ class BackupManager:
             try:
                 # filename format: backup_YYYYMMDD_HHMMSS.db.gz
                 date_str = filename[len("backup_"):-len(".db.gz")]
-                backup_date = datetime.strptime(date_str, "%Y%m%d_%H%M%S")
+                backup_date = datetime.strptime(date_str, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
             except ValueError:
                 logger.warning(f"Could not parse date from backup filename: {filename}")
                 continue
